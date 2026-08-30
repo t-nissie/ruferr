@@ -15,14 +15,10 @@ class ConstrainedBFGS(BFGS):
     Fixes the norm of atomic displacements u = ||pos - ref_pos|| while 
     allowing internal coordinates and cell vectors to relax.
     """
-    def __init__(self, atoms, target_u: float, ref_positions=None, **kwargs):
+    def __init__(self, atoms, reference_scaled_positions, **kwargs):
         super().__init__(atoms, **kwargs)
-        self.target_u = target_u
-        if ref_positions is None:
-            # Use initial positions as reference structure
-            self.ref_positions = self.atoms.get_positions().copy()
-        else:
-            self.ref_positions = np.array(ref_positions)
+        # remve x,y,z translation here
+        self.u_x = # calculate u_x, u_y, u_z here
 
     def step(self, gradient=None):
         gradient = self._get_gradient(gradient)
@@ -38,7 +34,7 @@ class ConstrainedBFGS(BFGS):
         # Enforce fixed-u constraint on atomic position degrees of freedom
         natoms = len(self.atoms)
         atomic_dpos = new_pos[:natoms * 3].reshape(natoms, 3)
-        ref_flat = self.ref_positions.reshape(natoms, 3)
+        ref_flat = self.reference_scaled_positions.reshape(natoms, 3)
 
         # Center displacement vector (remove translation)
         disp = atomic_dpos - ref_flat
@@ -63,16 +59,19 @@ class ConstrainedBFGS(BFGS):
 
 
 # 1. Structure setup
+reference_scaled_positions=[
+    [0.0, 0.0, 0.0],  # Ba
+    [0.5, 0.5, 0.5],  # Ti
+    [0.0, 0.5, 0.5],  # O1
+    [0.5, 0.0, 0.5],  # O2
+    [0.5, 0.5, 0.0],  # O3
+]
+scaled_positions = reference_scaled_positions.copy()
+scaled_positions[0][2]=scaled_positions[0][2]+0.2
 a = 4.01
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
-    scaled_positions=[
-        [0.0, 0.0, 0.2],  # Ba
-        [0.5, 0.5, 0.5],  # Ti
-        [0.0, 0.5, 0.5],  # O1
-        [0.5, 0.0, 0.5],  # O2
-        [0.5, 0.5, 0.0],  # O3
-    ],
+    scaled_positions=scaled_positions,
     cell=[a, a, a + 0.1],
     pbc=True
 )
@@ -84,7 +83,7 @@ initial_energy = atoms.get_potential_energy()
 print(f"Initial potential energy: {initial_energy:.4f} eV")
 
 # 3. Apply target amplitude u (e.g., u = 0.2 Å displacement norm)
-cell_relax = ExpCellFilter(atoms)
+cell_relax = ExpCellFilter(atoms, reference_scaled_positions)
 
 target_u = 0.2  # Set desired displacement amplitude target
 optimizer = ConstrainedBFGS(cell_relax, target_u=target_u)
