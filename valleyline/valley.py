@@ -10,16 +10,17 @@ from ase.optimize.bfgs import BFGS, BFGSMethod
 from mace.calculators import mace_mp
 
 
-# class ConstrainedBFGS(BFGS):
-#     """
-#     BFGS optimizer implementing the fixed-u constraint (Valley Line Method).
-#     Fixes the norm of atomic displacements u = ||pos - ref_pos|| while 
-#     allowing internal coordinates and cell vectors to relax.
-#     """
-#     def __init__(self, atoms, reference_scaled_positions, **kwargs):
-#         super().__init__(atoms, **kwargs)
-#         # remve x,y,z translation here
-#         self.u_x = # calculate u_x, u_y, u_z here
+class VallayLineBFGS(BFGS):
+    """
+    BFGS optimizer implementing the fixed-u constraint (Valley Line Method).
+    Fixes the norm of atomic displacements u = ||pos - ref_pos|| while 
+    allowing internal coordinates and cell vectors to relax.
+    """
+    def __init__(self, filteredAtoms, reference_scaled_positions, **kwargs):
+        super().__init__(filteredAtoms, **kwargs)
+        self.u2=filteredAtoms.atoms.remove_translations(reference_scaled_positions)
+        print(self.u2)
+        print(filteredAtoms.atoms.get_scaled_positions())
 
 #     def step(self, gradient=None):
 #         gradient = self._get_gradient(gradient)
@@ -90,17 +91,18 @@ reference_scaled_positions=np.array([
     [0.5, 0.5, 0.0],  # O3
 ])
 scaled_positions = reference_scaled_positions.copy()
-scaled_positions[0][2]=scaled_positions[0][2]+0.1
-scaled_positions[1][2]=scaled_positions[1][2]+0.1
-a = 4.01
+for i in range(3):
+    scaled_positions[0][i]=scaled_positions[0][i]+0.1
+    scaled_positions[1][i]=scaled_positions[1][i]+0.1
+a = 4.1
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
     scaled_positions=scaled_positions,
-    cell=[a, a, a + 0.1], # tetragonal
+    cell=[a, a, a], # tetragonal
     pbc=True
 )
-print(atoms.remove_translations(reference_scaled_positions))
-print(atoms.get_scaled_positions())
+#print(atoms.remove_translations(reference_scaled_positions))
+#print(atoms.get_scaled_positions())
 
 
 
@@ -114,14 +116,14 @@ print(f"Initial potential energy: {initial_energy:.4f} eV")
 cell_relax = FrechetCellFilter(atoms)
 
 target_u = 0.2  # Set desired displacement amplitude target
-#optimizer = ConstrainedBFGS(cell_relax, reference_scaled_positions)
-optimizer = BFGS(cell_relax)
+optimizer = VallayLineBFGS(cell_relax, reference_scaled_positions)
+#optimizer = BFGS(cell_relax)
 
-optimizer.run(fmax=0.05)
+#optimizer.run(fmax=0.05)
 
 # 4. Display optimized energy and results
-final_energy = atoms.get_potential_energy()
-print(f"Optimized potential energy (u={target_u:.2f} Å): {final_energy:.4f} eV")
-print("Optimization finished successfully!")
-print(atoms)
-print(atoms.get_scaled_positions(wrap=True))
+#final_energy = atoms.get_potential_energy()
+#print(f"Optimized potential energy (u={target_u:.2f} Å): {final_energy:.4f} eV")
+#print("Optimization finished successfully!")
+#print(atoms)
+#print(atoms.get_scaled_positions(wrap=True))
