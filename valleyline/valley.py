@@ -18,8 +18,8 @@ class VallayLineBFGS(BFGS):
     """
     def __init__(self, filteredAtoms, reference_scaled_positions, **kwargs):
         super().__init__(filteredAtoms, **kwargs)
-        self.u2=filteredAtoms.atoms.remove_translations(reference_scaled_positions)
-        print(self.u2)
+        self.u=filteredAtoms.atoms.remove_translations(reference_scaled_positions)
+        print(self.u)
         print(filteredAtoms.atoms.get_scaled_positions())
 
 #     def step(self, gradient=None):
@@ -74,8 +74,8 @@ def remove_translations(self, centrosymmetric):
     self.set_scaled_positions(new_sp)
     new_displacement = new_sp - centrosymmetric
     new_displacement = (new_displacement + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
-    u2=np.sum(new_displacement**2, axis=0)
-    return u2
+    u=np.sqrt(np.sum(new_displacement**2, axis=0))
+    return u
 
 # add a method to Atoms class
 Atoms.remove_translations = remove_translations
@@ -91,14 +91,14 @@ reference_scaled_positions=np.array([
     [0.5, 0.5, 0.0],  # O3
 ])
 scaled_positions = reference_scaled_positions.copy()
-for i in range(3):
-    scaled_positions[0][i]=scaled_positions[0][i]+0.1
-    scaled_positions[1][i]=scaled_positions[1][i]+0.1
-a = 4.1
+i=2 #for i in range(3):
+scaled_positions[0][i]=scaled_positions[0][i]+0.1
+scaled_positions[1][i]=scaled_positions[1][i]+0.1
+a = 4.01
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
     scaled_positions=scaled_positions,
-    cell=[a, a, a], # tetragonal
+    cell=[a, a, a+0.1], # tetragonal
     pbc=True
 )
 #print(atoms.remove_translations(reference_scaled_positions))
