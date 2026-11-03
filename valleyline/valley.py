@@ -16,9 +16,9 @@ class VallayLineBFGS(BFGS):
     Fixes the norm of atomic displacements u = ||pos - ref_pos|| while 
     allowing internal coordinates and cell vectors to relax.
     """
-    def __init__(self, filteredAtoms, reference_scaled_positions, **kwargs):
+    def __init__(self, filteredAtoms, scaled_centrosymmetrics, **kwargs):
         super().__init__(filteredAtoms, **kwargs)
-        self.u=filteredAtoms.atoms.remove_translations(reference_scaled_positions)
+        self.u=filteredAtoms.atoms.remove_translations(scaled_centrosymmetrics)
         print(self.u)
         print(filteredAtoms.atoms.get_scaled_positions())
 
@@ -36,7 +36,7 @@ class VallayLineBFGS(BFGS):
 #         # Enforce fixed-u constraint on atomic position degrees of freedom
 #         natoms = len(self.atoms)
 #         atomic_dpos = new_pos[:natoms * 3].reshape(natoms, 3)
-#         ref_flat = self.reference_scaled_positions.reshape(natoms, 3)
+#         ref_flat = self.scaled_centrosymmetrics.reshape(natoms, 3)
 
 #         # Center displacement vector (remove translation)
 #         disp = atomic_dpos - ref_flat
@@ -59,20 +59,20 @@ class VallayLineBFGS(BFGS):
 #         else:
 #             self.dump((self.state.hessian, self.pos0, self.forces0, self.maxstep))
 
-def remove_translations(self, centrosymmetric):
+def remove_translations(self, scaled_centrosymmetrics):
     """
     Remove x, y, z translations from displacements from a given scaled centrosymmetric structure.
     Return a vector of [u_x^2, u_y^2, u_z^2]
     """
     sp = self.get_scaled_positions()
-    if len(sp) != len(centrosymmetric):
-        raise ValueError("The number of atoms of Atoms and the given centrosymmetric structure is different.")
-    displacement = sp - centrosymmetric
+    if len(sp) != len(scaled_centrosymmetrics):
+        raise ValueError("The number of atoms of Atoms and the given scaled centrosymmetric structure is different.")
+    displacement = sp - scaled_centrosymmetrics
     displacement = (displacement + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
     mean_translation = np.mean(displacement, axis=0)
     new_sp = sp - mean_translation
     self.set_scaled_positions(new_sp)
-    new_displacement = new_sp - centrosymmetric
+    new_displacement = new_sp - scaled_centrosymmetrics
     new_displacement = (new_displacement + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
     u=np.sqrt(np.sum(new_displacement**2, axis=0))
     return u
@@ -83,14 +83,16 @@ Atoms.remove_translations = remove_translations
 
 #===Main===================================================================
 # 1. Structure setup
-reference_scaled_positions=np.array([
+scaled_centrosymmetrics=np.array([
     [0.0, 0.0, 0.0],  # Ba
     [0.5, 0.5, 0.5],  # Ti
     [0.0, 0.5, 0.5],  # O1
     [0.5, 0.0, 0.5],  # O2
     [0.5, 0.5, 0.0],  # O3
 ])
-scaled_positions = reference_scaled_positions.copy()
+
+# make slightly displaced scaled positions.
+scaled_positions = scaled_centrosymmetrics.copy()
 i=2 #for i in range(3):
 scaled_positions[0][i]=scaled_positions[0][i]+0.1
 scaled_positions[1][i]=scaled_positions[1][i]+0.1
@@ -101,7 +103,7 @@ atoms = Atoms(
     cell=[a, a, a+0.1], # tetragonal
     pbc=True
 )
-#print(atoms.remove_translations(reference_scaled_positions))
+#print(atoms.remove_translations(scaled_centrosymmetrics))
 #print(atoms.get_scaled_positions())
 
 
@@ -115,8 +117,7 @@ print(f"Initial potential energy: {initial_energy:.4f} eV")
 # 3. Apply target amplitude u (e.g., u = 0.2 Å displacement norm)
 cell_relax = FrechetCellFilter(atoms)
 
-target_u = 0.2  # Set desired displacement amplitude target
-optimizer = VallayLineBFGS(cell_relax, reference_scaled_positions)
+optimizer = VallayLineBFGS(cell_relax, scaled_centrosymmetrics)
 #optimizer = BFGS(cell_relax)
 
 #optimizer.run(fmax=0.05)
