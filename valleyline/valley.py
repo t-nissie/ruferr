@@ -7,6 +7,7 @@ from pathlib import Path
 from ase import Atoms
 from ase.filters import FrechetCellFilter
 from ase.optimize.bfgs import BFGS, BFGSMethod
+from ase.optimize.optimize import Optimizer, UnitCellFilter
 from mace.calculators import mace_mp
 
 
@@ -17,66 +18,46 @@ class VallayLineBFGS(BFGS):
     allowing internal coordinates and cell vectors to relax.
     """
     def __init__(self, filteredAtoms, scaled_centrosymmetrics, **kwargs):
+        self.scaled_centrosymmetrics=scaled_centrosymmetrics
+        self.displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics)
+        self.norms=np.sqrt(np.sum(self.displacements**2, axis=0))
         super().__init__(filteredAtoms, **kwargs)
-        self.u=filteredAtoms.atoms.remove_translations(scaled_centrosymmetrics)
-        print(self.u)
+        print(self.displacements)
+        print(self.norms)
         print(filteredAtoms.atoms.get_scaled_positions())
 
-#     def step(self, gradient=None):
-#         gradient = self._get_gradient(gradient)
-#         optimizable = self.optimizable
+    def step(self, gradient=None):
+        gradient = self._get_gradient(gradient)
+        optimizable = self.optimizable
 
-#         pos = optimizable.get_x()
-#         dpos, steplengths = self.prepare_step(pos, gradient)
-#         dpos = self.determine_step(dpos, steplengths)
+        pos = optimizable.get_x()
+        dpos, steplengths = self.prepare_step(pos, gradient)
+        dpos = self.determine_step(dpos, steplengths)
+        optimizable.set_x(pos + dpos)
+        if isinstance(self.atoms, UnitCellFilter):
+            self.dump((self.state.hessian, self.pos0, self.forces0,
+                       self.maxstep, self.atoms.orig_cell))
+        else:
+            self.dump((self.state.hessian, self.pos0, self.forces0,
+                       self.maxstep))
 
-#         # Proposed next coordinates
-#         new_pos = pos + dpos
-
-#         # Enforce fixed-u constraint on atomic position degrees of freedom
-#         natoms = len(self.atoms)
-#         atomic_dpos = new_pos[:natoms * 3].reshape(natoms, 3)
-#         ref_flat = self.scaled_centrosymmetrics.reshape(natoms, 3)
-
-#         # Center displacement vector (remove translation)
-#         disp = atomic_dpos - ref_flat
-#         disp -= disp.mean(axis=0)
-
-#         # Rescale displacement magnitude to exactly match target_u
-#         current_u = np.linalg.norm(disp)
-#         if current_u > 1e-12:
-#             disp = disp * (self.target_u / current_u)
-
-#         # Re-apply constrained atomic positions
-#         atomic_dpos = ref_flat + disp
-#         new_pos[:natoms * 3] = atomic_dpos.ravel()
-
-#         optimizable.set_x(new_pos)
-
-#         # Dump trajectory/restart state
-#         if hasattr(self.atoms, 'orig_cell'):
-#             self.dump((self.state.hessian, self.pos0, self.forces0, self.maxstep, self.atoms.orig_cell))
-#         else:
-#             self.dump((self.state.hessian, self.pos0, self.forces0, self.maxstep))
 
 def remove_translations(self, scaled_centrosymmetrics):
     """
     Remove x, y, z translations from displacements from a given scaled centrosymmetric structure.
-    Return a vector of [u_x^2, u_y^2, u_z^2]
+    Return array of scaled displacements [u_x, u_y, u_z].
     """
     sp = self.get_scaled_positions()
     if len(sp) != len(scaled_centrosymmetrics):
         raise ValueError("The number of atoms of Atoms and the given scaled centrosymmetric structure is different.")
-    displacement = sp - scaled_centrosymmetrics
-    displacement = (displacement + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
-    mean_translation = np.mean(displacement, axis=0)
+    displacements = sp - scaled_centrosymmetrics
+    displacements = (displacements + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
+    mean_translation = np.mean(displacements, axis=0)
     new_sp = sp - mean_translation
     self.set_scaled_positions(new_sp)
-    new_displacement = new_sp - scaled_centrosymmetrics
-    new_displacement = (new_displacement + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
-    u=np.sqrt(np.sum(new_displacement**2, axis=0))
-    return u
-
+    new_displacements = new_sp - scaled_centrosymmetrics
+    new_displacements = (new_displacements + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
+    return new_displacements
 # add a method to Atoms class
 Atoms.remove_translations = remove_translations
 
@@ -115,12 +96,13 @@ initial_energy = atoms.get_potential_energy()
 print(f"Initial potential energy: {initial_energy:.4f} eV")
 
 # 3. Apply target amplitude u (e.g., u = 0.2 Å displacement norm)
-cell_relax = FrechetCellFilter(atoms)
+filtered = FrechetCellFilter(atoms)
 
-optimizer = VallayLineBFGS(cell_relax, scaled_centrosymmetrics)
-#optimizer = BFGS(cell_relax)
+optimizer = VallayLineBFGS(filtered, scaled_centrosymmetrics)
+optimizer.run(fmax=0.05)
 
-#optimizer.run(fmax=0.05)
+print(atoms.remove_translations(scaled_centrosymmetrics))
+print(atoms)
 
 # 4. Display optimized energy and results
 #final_energy = atoms.get_potential_energy()
