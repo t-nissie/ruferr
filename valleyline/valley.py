@@ -11,7 +11,7 @@ from ase.optimize.optimize import Optimizer, UnitCellFilter
 from mace.calculators import mace_mp
 
 
-class VallayLineBFGS(BFGS):
+class valleyLineBFGS(BFGS):
     """
     BFGS optimizer implementing the fixed-u constraint (Valley Line Method).
     Fixes the norm of atomic displacements u = ||pos - ref_pos|| while 
@@ -102,7 +102,7 @@ print(f"Initial potential energy: {initial_energy:.4f} eV")
 # 3. Apply target amplitude u (e.g., u = 0.2 Å displacement norm)
 filtered = FrechetCellFilter(atoms)
 
-optimizer = VallayLineBFGS(filtered, scaled_centrosymmetrics)
+optimizer = valleyLineBFGS(filtered, scaled_centrosymmetrics)
 optimizer.run(fmax=0.05)
 
 print(atoms.remove_translations(scaled_centrosymmetrics))
