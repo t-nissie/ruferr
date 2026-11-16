@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ase import Atoms
 from ase.filters import FrechetCellFilter
-from ase.optimize.bfgs import BFGS, BFGSMethod
+from ase.optimize.bfgs import BFGS
 from ase.optimize.optimize import Optimizer, UnitCellFilter
 from mace.calculators import mace_mp
 
@@ -32,6 +32,8 @@ class VallayLineBFGS(BFGS):
 
         pos = optimizable.get_x()
         dpos, steplengths = self.prepare_step(pos, gradient)
+        print(dpos)
+        print(steplengths)
         dpos = self.determine_step(dpos, steplengths)
         optimizable.set_x(pos + dpos)
         if isinstance(self.atoms, UnitCellFilter):
@@ -40,6 +42,8 @@ class VallayLineBFGS(BFGS):
         else:
             self.dump((self.state.hessian, self.pos0, self.forces0,
                        self.maxstep))
+
+    # exit the valley-line loop other than fmax
 
 
 def remove_translations(self, scaled_centrosymmetrics):
@@ -89,7 +93,7 @@ atoms = Atoms(
 
 
 
-atoms.calc = mace_mp(model="medium")
+atoms.calc = mace_mp()
 
 # 2. Display initial energy
 initial_energy = atoms.get_potential_energy()
