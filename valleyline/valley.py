@@ -19,22 +19,27 @@ class valleyLineBFGS(BFGS):
     """
     def __init__(self, filteredAtoms, scaled_centrosymmetrics, **kwargs):
         self.scaled_centrosymmetrics=scaled_centrosymmetrics
-        self.displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics)
-        self.norms=np.sqrt(np.sum(self.displacements**2, axis=0))
+        self.displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics).ravel()
+        self.norm=np.sqrt(np.sum(self.displacements**2))
+        self.unit_vector_n=self.displacements.ravel()/self.norm
+        self.len=self.unit_vector_n.size
         super().__init__(filteredAtoms, **kwargs)
         print(self.displacements)
-        print(self.norms)
+        print(self.norm)
+        print(self.unit_vector_n)
+        print(self.unit_vector_n.size)
         print(filteredAtoms.atoms.get_scaled_positions())
 
     def step(self, gradient=None):
         gradient = self._get_gradient(gradient)
         optimizable = self.optimizable
-
         pos = optimizable.get_x()
         dpos, steplengths = self.prepare_step(pos, gradient)
         print(dpos)
-        print(steplengths)
-        dpos = self.determine_step(dpos, steplengths)
+        new_dpos = dpos[:self.len] - (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
+        print(new_dpos)
+        #print(steplengths)
+        #dpos = self.determine_step(dpos, steplengths)
         optimizable.set_x(pos + dpos)
         if isinstance(self.atoms, UnitCellFilter):
             self.dump((self.state.hessian, self.pos0, self.forces0,
