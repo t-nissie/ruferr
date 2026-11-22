@@ -104,11 +104,4 @@ optimizer.run(fmax=0.05,steps=100)
 displacements = atoms.remove_translations(scaled_centrosymmetrics)
 print(displacements[:,xyz])
 print(np.sqrt(np.sum(displacements**2)))
-print(atoms)
-
-# 4. Display optimized energy and results
-#final_energy = atoms.get_potential_energy()
-#print(f"Optimized potential energy (u={target_u:.2f} Å): {final_energy:.4f} eV")
-#print("Optimization finished successfully!")
-#print(atoms)
-#print(atoms.get_scaled_positions(wrap=True))
+print(atoms.cell.cellpar())
