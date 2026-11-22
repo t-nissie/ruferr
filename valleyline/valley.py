@@ -20,12 +20,12 @@ class valleyLineBFGS(BFGS):
     def __init__(self, filteredAtoms, scaled_centrosymmetrics, **kwargs):
         self.scaled_centrosymmetrics=scaled_centrosymmetrics
         self.displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics).ravel()
-        self.norm=np.sqrt(np.sum(self.displacements**2))
-        self.unit_vector_n=self.displacements.ravel()/self.norm
+        norm=np.sqrt(np.sum(self.displacements**2))
+        self.unit_vector_n=self.displacements.ravel()/norm
         self.len=self.unit_vector_n.size
         super().__init__(filteredAtoms, **kwargs)
         print(self.displacements)
-        print(self.norm)
+        print(norm)
         print(self.unit_vector_n)
         print(self.unit_vector_n.size)
         print(filteredAtoms.atoms.get_scaled_positions())
@@ -76,37 +76,34 @@ scaled_centrosymmetrics=np.array([
     [0.5, 0.0, 0.5],  # O2
     [0.5, 0.5, 0.0],  # O3
 ])
+a = 4.01
+cell=[a,a,a]
 
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
-i=2 #for i in range(3):
-scaled_positions[0][i]=scaled_positions[0][i]+0.1
-scaled_positions[1][i]=scaled_positions[1][i]+0.1
-a = 4.01
+xyz=0 #x
+scaled_positions[0][xyz]=scaled_positions[0][xyz]+0.01
+scaled_positions[1][xyz]=scaled_positions[1][xyz]+0.01
+cell[xyz]=cell[xyz]+0.01
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
     scaled_positions=scaled_positions,
-    cell=[a, a, a+0.1], # tetragonal
+    cell=cell,
     pbc=True
 )
-#print(atoms.remove_translations(scaled_centrosymmetrics))
-#print(atoms.get_scaled_positions())
-
-
-
 atoms.calc = mace_mp()
 
 # 2. Display initial energy
 initial_energy = atoms.get_potential_energy()
 print(f"Initial potential energy: {initial_energy:.4f} eV")
 
-# 3. Apply target amplitude u (e.g., u = 0.2 Å displacement norm)
-filtered = FrechetCellFilter(atoms)
+# 3. valley line optimization
+optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics)
+optimizer.run(fmax=0.05,steps=100)
 
-optimizer = valleyLineBFGS(filtered, scaled_centrosymmetrics)
-optimizer.run(fmax=0.05)
-
-print(atoms.remove_translations(scaled_centrosymmetrics))
+displacements = atoms.remove_translations(scaled_centrosymmetrics)
+print(displacements[:,xyz])
+print(np.sqrt(np.sum(displacements**2)))
 print(atoms)
 
 # 4. Display optimized energy and results
