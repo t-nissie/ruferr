@@ -17,15 +17,16 @@ class valleyLineBFGS(BFGS):
     Fixes the norm of atomic displacements u = ||pos - ref_pos|| while 
     allowing internal coordinates and cell vectors to relax.
     """
-    def __init__(self, filteredAtoms, scaled_centrosymmetrics, **kwargs):
+    def __init__(self, filteredAtoms, scaled_centrosymmetrics, symmetry, **kwargs):
         self.scaled_centrosymmetrics=scaled_centrosymmetrics
-        displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics)
-        norm=np.sqrt(np.sum(displacements**2))
-        self.unit_vector_n=displacements.ravel()/norm
+        self.symmetry = symmetry
+        displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics, self.symmetry)
+        self.norm=np.linalg.norm(displacements)
+        self.unit_vector_n=displacements.ravel()/self.norm
         self.len=self.unit_vector_n.size
         super().__init__(filteredAtoms, **kwargs)
         print('displacements:\n', displacements)
-        print(norm)
+        print(self.norm)
         print('unit_vector_n:\n', self.unit_vector_n.reshape([-1,3]))
         print(self.len)
         print(filteredAtoms.atoms.get_scaled_positions())
@@ -39,14 +40,14 @@ class valleyLineBFGS(BFGS):
         dpos[:self.len] -= (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
         #print(dpos.reshape([-1,3]))
         #steplengths = self.optimizable.gradient_norm(dpos)
-        dpos = self.determine_step(dpos, steplengths)
+        #dpos = self.determine_step(dpos, steplengths)
         optimizable.set_x(pos+dpos)
-        displacements=self.atoms.atoms.remove_translations(self.scaled_centrosymmetrics)
-        norm=np.sqrt(np.sum(displacements**2))
+        displacements=self.atoms.atoms.remove_translations(self.scaled_centrosymmetrics, self.symmetry, self.norm)
+        norm=np.linalg.norm(displacements)
         self.unit_vector_n=displacements.ravel()/norm
-        print('displacements:\n', displacements)
-        print(norm)
-        print('unit_vector_n:\n', self.unit_vector_n.reshape([-1,3]))
+        #print('displacements:\n', displacements)
+        #print(norm)
+        #print('unit_vector_n:\n', self.unit_vector_n.reshape([-1,3]))
         if isinstance(self.atoms, UnitCellFilter):
             self.dump((self.state.hessian, self.pos0, self.forces0,
                        self.maxstep, self.atoms.orig_cell))
@@ -57,10 +58,10 @@ class valleyLineBFGS(BFGS):
     # exit the valley-line loop other than fmax
 
 
-def remove_translations(self, scaled_centrosymmetrics):
+def remove_translations(self, scaled_centrosymmetrics, symmetry, set_norm=-1000.0):
     """
     Remove x, y, z translations from displacements from a given scaled centrosymmetric structure.
-    Return array of scaled displacements [u_x, u_y, u_z].
+    Return array of scaled displacements [v_x_scaled, v_y_scaled v_z_scaled].
     """
     sp = self.get_scaled_positions()
     if len(sp) != len(scaled_centrosymmetrics):
@@ -68,10 +69,10 @@ def remove_translations(self, scaled_centrosymmetrics):
     displacements = sp - scaled_centrosymmetrics
     displacements = (displacements + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
     mean_translation = np.mean(displacements, axis=0)
-    new_sp = sp - mean_translation
-    self.set_scaled_positions(new_sp)
-    new_displacements = new_sp - scaled_centrosymmetrics
-    new_displacements = (new_displacements + 0.5) % 1.0 - 0.5   # within [-0.5, 0.5)
+    new_displacements = (displacements - mean_translation) * symmetry
+    if set_norm>0.0:
+        new_displacements = new_displacements * set_norm / np.linalg.norm(new_displacements)
+    self.set_scaled_positions(scaled_centrosymmetrics+new_displacements)
     return new_displacements
 # add a method to Atoms class
 Atoms.remove_translations = remove_translations
@@ -88,13 +89,14 @@ scaled_centrosymmetrics=np.array([
 ])
 a = 4.01
 cell=[a,a,a]
+symmetry=[0,0,1] # [0,0,1] tetragonal, [1,1,0] orthorhombic, [1,1,1] rhombohedral
 
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
-xyz=2 #z
-scaled_positions[0][xyz]=scaled_positions[0][xyz]+0.1
-scaled_positions[1][xyz]=scaled_positions[1][xyz]+0.1
-cell[xyz]=cell[xyz]+0.2
+for index, value in enumerate(symmetry):
+    scaled_positions[0][index]=scaled_positions[0][index]+0.1*value
+    scaled_positions[1][index]=scaled_positions[1][index]+0.1*value
+    cell[index]=cell[index]+0.3*value
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
     scaled_positions=scaled_positions,
@@ -108,10 +110,10 @@ initial_energy = atoms.get_potential_energy()
 print(f"Initial potential energy: {initial_energy:.4f} eV")
 
 # 3. valley line optimization
-optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics)
-optimizer.run(fmax=0.05,steps=150)
+optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics, symmetry)
+optimizer.run(fmax=0.05,steps=40)
 
-displacements = atoms.remove_translations(scaled_centrosymmetrics)
+displacements =            atoms.remove_translations(scaled_centrosymmetrics, symmetry)
 print(displacements)
-print(np.sqrt(np.sum(displacements**2)))
+print(np.linalg.norm(displacements))
 print(atoms.cell.cellpar())
