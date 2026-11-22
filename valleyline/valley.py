@@ -17,26 +17,25 @@ class valleyLineBFGS(BFGS):
     Fixes the norm of atomic displacements u = ||pos - ref_pos|| while 
     allowing internal coordinates and cell vectors to relax.
     """
-    def __init__(self, filteredAtoms, scaled_centrosymmetrics, **kwargs):
+    def __init__(self, atoms, scaled_centrosymmetrics, **kwargs):
         self.scaled_centrosymmetrics=scaled_centrosymmetrics
-        self.displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics).ravel()
+        self.displacements=atoms.remove_translations(self.scaled_centrosymmetrics).ravel()
         norm=np.sqrt(np.sum(self.displacements**2))
         self.unit_vector_n=self.displacements.ravel()/norm
-        self.len=self.unit_vector_n.size
-        super().__init__(filteredAtoms, **kwargs)
+        super().__init__(atoms, **kwargs)
         print(self.displacements)
         print(norm)
         print(self.unit_vector_n)
         print(self.unit_vector_n.size)
-        print(filteredAtoms.atoms.get_scaled_positions())
+        print(atoms.get_scaled_positions())
 
     def step(self, gradient=None):
         gradient = self._get_gradient(gradient)
         optimizable = self.optimizable
         pos = optimizable.get_x()
         dpos, steplengths = self.prepare_step(pos, gradient)
-        pos[:self.len] = pos[:self.len] + dpos[:self.len] - (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
-        optimizable.set_x(pos)
+        dpos = dpos - (dpos @ self.unit_vector_n) * self.unit_vector_n
+        optimizable.set_x(pos+dpos)
         if isinstance(self.atoms, UnitCellFilter):
             self.dump((self.state.hessian, self.pos0, self.forces0,
                        self.maxstep, self.atoms.orig_cell))
@@ -81,10 +80,10 @@ cell=[a,a,a]
 
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
-xyz=0 #x
+xyz=2 #z
 scaled_positions[0][xyz]=scaled_positions[0][xyz]+0.01
 scaled_positions[1][xyz]=scaled_positions[1][xyz]+0.01
-cell[xyz]=cell[xyz]+0.01
+cell[xyz]=cell[xyz]+0.03
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
     scaled_positions=scaled_positions,
@@ -98,7 +97,7 @@ initial_energy = atoms.get_potential_energy()
 print(f"Initial potential energy: {initial_energy:.4f} eV")
 
 # 3. valley line optimization
-optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics)
+optimizer = valleyLineBFGS(atoms, scaled_centrosymmetrics)
 optimizer.run(fmax=0.05,steps=100)
 
 displacements = atoms.remove_translations(scaled_centrosymmetrics)
