@@ -35,12 +35,8 @@ class valleyLineBFGS(BFGS):
         optimizable = self.optimizable
         pos = optimizable.get_x()
         dpos, steplengths = self.prepare_step(pos, gradient)
-        print(dpos)
-        new_dpos = dpos[:self.len] - (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
-        print(new_dpos)
-        #print(steplengths)
-        #dpos = self.determine_step(dpos, steplengths)
-        optimizable.set_x(pos + dpos)
+        pos[:self.len] = pos[:self.len] + dpos[:self.len] - (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
+        optimizable.set_x(pos)
         if isinstance(self.atoms, UnitCellFilter):
             self.dump((self.state.hessian, self.pos0, self.forces0,
                        self.maxstep, self.atoms.orig_cell))
