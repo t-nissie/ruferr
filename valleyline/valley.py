@@ -19,15 +19,15 @@ class valleyLineBFGS(BFGS):
     """
     def __init__(self, filteredAtoms, scaled_centrosymmetrics, **kwargs):
         self.scaled_centrosymmetrics=scaled_centrosymmetrics
-        self.displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics).ravel()
-        norm=np.sqrt(np.sum(self.displacements**2))
-        self.unit_vector_n=self.displacements.ravel()/norm
+        displacements=filteredAtoms.atoms.remove_translations(self.scaled_centrosymmetrics)
+        norm=np.sqrt(np.sum(displacements**2))
+        self.unit_vector_n=displacements.ravel()/norm
         self.len=self.unit_vector_n.size
         super().__init__(filteredAtoms, **kwargs)
-        print(self.displacements)
+        print('displacements:\n', displacements)
         print(norm)
-        print(self.unit_vector_n)
-        print(self.unit_vector_n.size)
+        print('unit_vector_n:\n', self.unit_vector_n.reshape([-1,3]))
+        print(self.len)
         print(filteredAtoms.atoms.get_scaled_positions())
 
     def step(self, gradient=None):
@@ -35,10 +35,18 @@ class valleyLineBFGS(BFGS):
         optimizable = self.optimizable
         pos = optimizable.get_x()
         dpos, steplengths = self.prepare_step(pos, gradient)
-        print(dpos.reshape([8,3]))
+        #print(dpos.reshape([-1,3]))
         dpos[:self.len] -= (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
-        print(dpos.reshape([8,3]))
+        #print(dpos.reshape([-1,3]))
+        #steplengths = self.optimizable.gradient_norm(dpos)
+        dpos = self.determine_step(dpos, steplengths)
         optimizable.set_x(pos+dpos)
+        displacements=self.atoms.atoms.remove_translations(self.scaled_centrosymmetrics)
+        norm=np.sqrt(np.sum(displacements**2))
+        self.unit_vector_n=displacements.ravel()/norm
+        print('displacements:\n', displacements)
+        print(norm)
+        print('unit_vector_n:\n', self.unit_vector_n.reshape([-1,3]))
         if isinstance(self.atoms, UnitCellFilter):
             self.dump((self.state.hessian, self.pos0, self.forces0,
                        self.maxstep, self.atoms.orig_cell))
@@ -101,7 +109,7 @@ print(f"Initial potential energy: {initial_energy:.4f} eV")
 
 # 3. valley line optimization
 optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics)
-optimizer.run(fmax=0.05,steps=5)
+optimizer.run(fmax=0.05,steps=150)
 
 displacements = atoms.remove_translations(scaled_centrosymmetrics)
 print(displacements)
