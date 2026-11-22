@@ -35,8 +35,10 @@ class valleyLineBFGS(BFGS):
         optimizable = self.optimizable
         pos = optimizable.get_x()
         dpos, steplengths = self.prepare_step(pos, gradient)
-        pos[:self.len] = pos[:self.len] + dpos[:self.len] - (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
-        optimizable.set_x(pos)
+        print(dpos.reshape([8,3]))
+        dpos[:self.len] -= (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
+        print(dpos.reshape([8,3]))
+        optimizable.set_x(pos+dpos)
         if isinstance(self.atoms, UnitCellFilter):
             self.dump((self.state.hessian, self.pos0, self.forces0,
                        self.maxstep, self.atoms.orig_cell))
@@ -81,10 +83,10 @@ cell=[a,a,a]
 
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
-xyz=0 #x
-scaled_positions[0][xyz]=scaled_positions[0][xyz]+0.01
-scaled_positions[1][xyz]=scaled_positions[1][xyz]+0.01
-cell[xyz]=cell[xyz]+0.01
+xyz=2 #z
+scaled_positions[0][xyz]=scaled_positions[0][xyz]+0.1
+scaled_positions[1][xyz]=scaled_positions[1][xyz]+0.1
+cell[xyz]=cell[xyz]+0.2
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
     scaled_positions=scaled_positions,
@@ -99,9 +101,9 @@ print(f"Initial potential energy: {initial_energy:.4f} eV")
 
 # 3. valley line optimization
 optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics)
-optimizer.run(fmax=0.05,steps=100)
+optimizer.run(fmax=0.05,steps=5)
 
 displacements = atoms.remove_translations(scaled_centrosymmetrics)
-print(displacements[:,xyz])
+print(displacements)
 print(np.sqrt(np.sum(displacements**2)))
 print(atoms.cell.cellpar())
