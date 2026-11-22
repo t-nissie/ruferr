@@ -38,9 +38,9 @@ class valleyLineBFGS(BFGS):
         dpos, steplengths = self.prepare_step(pos, gradient)
         #print(dpos.reshape([-1,3]))
         dpos[:self.len] -= (dpos[:self.len] @ self.unit_vector_n) * self.unit_vector_n
-        #print(dpos.reshape([-1,3]))
-        #steplengths = self.optimizable.gradient_norm(dpos)
-        #dpos = self.determine_step(dpos, steplengths)
+        print(dpos.reshape([-1,3]))
+        steplengths = self.optimizable.gradient_norm(dpos)
+        dpos = self.determine_step(dpos, steplengths)
         optimizable.set_x(pos+dpos)
         displacements=self.atoms.atoms.remove_translations(self.scaled_centrosymmetrics, self.symmetry, self.norm)
         norm=np.linalg.norm(displacements)
@@ -94,9 +94,9 @@ symmetry=[0,0,1] # [0,0,1] tetragonal, [1,1,0] orthorhombic, [1,1,1] rhombohedra
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
 for index, value in enumerate(symmetry):
-    scaled_positions[0][index]=scaled_positions[0][index]+0.1*value
-    scaled_positions[1][index]=scaled_positions[1][index]+0.1*value
-    cell[index]=cell[index]+0.3*value
+    scaled_positions[0][index]=scaled_positions[0][index]+0.045*value
+    scaled_positions[1][index]=scaled_positions[1][index]+0.045*value
+    cell[index]=cell[index]+0.1*value
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
     scaled_positions=scaled_positions,
