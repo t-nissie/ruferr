@@ -89,7 +89,7 @@ scaled_centrosymmetrics=np.array([
 ])
 a = 4.01
 cell=[a,a,a]
-symmetry=[0,0,1] # [0,0,1] tetragonal, [1,1,0] orthorhombic, [1,1,1] rhombohedral
+symmetry=[1,0,0] # [1,0,0] tetragonal, [1,1,0] orthorhombic, [1,1,1] rhombohedral
 
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
@@ -111,9 +111,17 @@ print(f"Initial potential energy: {initial_energy:.4f} eV")
 
 # 3. valley line optimization
 optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics, symmetry)
-optimizer.run(fmax=0.05,steps=40)
+optimizer.run(fmax=0.02,steps=40)
 
-displacements =            atoms.remove_translations(scaled_centrosymmetrics, symmetry)
-print(displacements)
-print(np.linalg.norm(displacements))
-print(atoms.cell.cellpar())
+# 4. report the result
+displacements = atoms.remove_translations(           scaled_centrosymmetrics, symmetry)
+norms=np.sqrt(np.sum(displacements**2, axis=0))
+a,b,c,alpha,beta,gamma = atoms.cell.cellpar(radians=True)
+v=norms*[a,b,c]
+u=np.sqrt( v[0]**2 + v[1]**2 + v[2]**2 + 2*(  v[1]*v[2]*np.cos(alpha)
+                                            + v[2]*v[0]*np.cos(beta )
+                                            + v[0]*v[1]*np.cos(gamma)) )
+eta_x = displacements[:,0]/np.linalg.norm(displacements[:,0])
+print(gamma)
+# valley: u E eta_A_x eta_B_x eta_O_I_x eta_O_II_x eta_O_III_x a b c alpha beta_ gamma
+print('valley:', u, atoms.get_potential_energy(), *eta_x, *atoms.cell.cellpar())
