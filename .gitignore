@@ -39,3 +39,8 @@
 
 # debug information files
 *.dwo
+
+# data files, etc. in /valleyline/
+/valleyline/*.dat
+/valleyline/*.log
+/valleyline/bto*.py

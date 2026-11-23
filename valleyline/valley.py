@@ -93,10 +93,11 @@ symmetry=[1,0,0] # [1,0,0] tetragonal, [1,1,0] orthorhombic, [1,1,1] rhombohedra
 
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
+amp=0.045
 for index, value in enumerate(symmetry):
-    scaled_positions[0][index]=scaled_positions[0][index]+0.045*value
-    scaled_positions[1][index]=scaled_positions[1][index]+0.045*value
-    cell[index]=cell[index]+0.1*value
+    scaled_positions[0][index]=scaled_positions[0][index]+amp*value
+    scaled_positions[1][index]=scaled_positions[1][index]+amp*value
+    cell[index]=cell[index]+amp*value
 atoms = Atoms(
     symbols=['Ba', 'Ti', 'O', 'O', 'O'],
     scaled_positions=scaled_positions,
@@ -110,11 +111,16 @@ initial_energy = atoms.get_potential_energy()
 print(f"Initial potential energy: {initial_energy:.4f} eV")
 
 # 3. valley line optimization
-optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics, symmetry)
-optimizer.run(fmax=0.02,steps=40)
+if amp==0.000:
+    optimizer =           BFGS(FrechetCellFilter(atoms))
+    optimizer.run(fmax=0.02,steps=40)
+    displacements = np.array([[0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0]])
+else:
+    optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics, symmetry)
+    optimizer.run(fmax=0.02,steps=40)
+    displacements = atoms.remove_translations(           scaled_centrosymmetrics, symmetry)
 
 # 4. report the result
-displacements = atoms.remove_translations(           scaled_centrosymmetrics, symmetry)
 norms=np.sqrt(np.sum(displacements**2, axis=0))
 a,b,c,alpha,beta,gamma = atoms.cell.cellpar(radians=True)
 v=norms*[a,b,c]
