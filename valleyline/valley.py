@@ -129,5 +129,5 @@ u=np.sqrt( v[0]**2 + v[1]**2 + v[2]**2 + 2*(  v[1]*v[2]*np.cos(alpha)
                                             + v[0]*v[1]*np.cos(gamma)) )
 eta_x = displacements[:,0]/np.linalg.norm(displacements[:,0])
 print(gamma)
-# valley: u E eta_A_x eta_B_x eta_O_I_x eta_O_II_x eta_O_III_x a b c alpha beta_ gamma
+# valley: u E eta_A_x eta_B_x eta_O_I_x eta_O_II_x eta_O_III_x a b c alpha beta gamma
 print('valley:', u, atoms.get_potential_energy(), *eta_x, *atoms.cell.cellpar())
