@@ -90,10 +90,11 @@ scaled_centrosymmetrics=np.array([
 a = 4.01
 cell=[a,a,a]
 symmetry=[1,0,0] # [1,0,0] tetragonal, [1,1,0] orthorhombic, [1,1,1] rhombohedral
+steps=20
 
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
-amp=0.045
+amp=0.045/np.linalg.norm(symmetry)
 for index, value in enumerate(symmetry):
     scaled_positions[0][index]=scaled_positions[0][index]+amp*value
     scaled_positions[1][index]=scaled_positions[1][index]+amp*value
@@ -104,7 +105,7 @@ atoms = Atoms(
     cell=cell,
     pbc=True
 )
-atoms.calc = mace_mp()
+atoms.calc = mace_mp(model='large') # 2024-01-07-mace-128-L2_epoch-199.model
 
 # 2. Display initial energy
 initial_energy = atoms.get_potential_energy()
@@ -113,11 +114,11 @@ print(f"Initial potential energy: {initial_energy:.4f} eV")
 # 3. valley line optimization
 if amp==0.000:
     optimizer =           BFGS(FrechetCellFilter(atoms))
-    optimizer.run(fmax=0.02,steps=40)
+    optimizer.run(fmax=0.02,steps=steps)
     displacements = np.array([[0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0]])
 else:
     optimizer = valleyLineBFGS(FrechetCellFilter(atoms), scaled_centrosymmetrics, symmetry)
-    optimizer.run(fmax=0.02,steps=40)
+    optimizer.run(fmax=0.02,steps=steps)
     displacements = atoms.remove_translations(           scaled_centrosymmetrics, symmetry)
 
 # 4. report the result
