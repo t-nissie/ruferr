@@ -55,8 +55,16 @@ class valleyLineBFGS(BFGS):
             self.dump((self.state.hessian, self.pos0, self.forces0,
                        self.maxstep))
 
-    # exit the valley-line loop other than fmax
-
+    def gradient_converged(self, gradient):
+        e=self.optimizable.get_value()
+        if self.nsteps == 0:
+            self.last_e=e
+        else:
+            if abs(self.last_e-e)<=0.0005:
+                return True
+            else:
+                self.last_e=e
+        return False
 
 def remove_translations(self, scaled_centrosymmetrics, symmetry, set_norm=-1000.0):
     """
@@ -90,7 +98,7 @@ scaled_centrosymmetrics=np.array([
 a = 4.01
 cell=[a,a,a]
 symmetry=[1,0,0] # [1,0,0] tetragonal, [1,1,0] orthorhombic, [1,1,1] rhombohedral
-steps=20
+steps=50
 
 # make slightly displaced scaled positions.
 scaled_positions = scaled_centrosymmetrics.copy()
